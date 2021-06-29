@@ -1,0 +1,1 @@
+[{"Name":"BenchmarkBasic","NsPerOp":25710,"AllocsPerOp":222,"BytesPerOp":13473},{"Name":"BenchmarkStringIndexLookup","NsPerOp":142951,"AllocsPerOp":780,"BytesPerOp":53481},{"Name":"BenchmarkTableScan","NsPerOp":155154,"AllocsPerOp":665,"BytesPerOp":56026}]

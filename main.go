@@ -1,15 +1,18 @@
 package main
 
 import (
+	"net/http"
 	"sort"
 	"path"
-	"log"
+	// "log"
 	"os"
 	"time"
 	"strings"
 	"encoding/json"
 
-	"github.com/go-echarts/go-echarts/charts"
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/components"
+	"github.com/go-echarts/go-echarts/v2/opts"
 )
 
 type BenchResult struct {
@@ -37,6 +40,12 @@ func (s benchResultSlice) Less(i, j int) bool {
 
 func (s benchResultSlice) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+func httpserver(page *components.Page) func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		page.Render(w)
+	}
 }
 
 func main() {
@@ -72,45 +81,46 @@ func main() {
 		}
 		addToFinal(final, date, b)
 	}
+	for _, v := range final {
+		sort.Sort(benchResultSlice(v))
+	}
 
-	// var takeOne []benchResult
-	// var title string
-	// for name, oneCase := range final {
-	// 	takeOne = oneCase
-	// 	title = name
-	// 	break
+
+	page := components.NewPage()
+	for name, oneCase := range final {
+		bar := charts.NewBar()
+		bar.SetGlobalOptions(
+			charts.WithTitleOpts(opts.Title{Title: name}))
+		// charts.WithToolboxOpts(opts.{Show: true})
+
+		dates := make([]string, 0, len(oneCase))
+		nsop := make([]opts.BarData, 0, len(oneCase))
+		// allocs := make([]int64, 0, len(oneCase))
+		// byteAllocs := make([]int64, 0, len(oneCase))
+		for _, v := range oneCase {
+			dates = append(dates, v.Date)
+			nsop = append(nsop, opts.BarData{Value: v.NsPerOp})
+			// allocs = append(allocs, v.AllocsPerOp)
+			// byteAllocs = append(byteAllocs, v.BytesPerOp)
+		}
+
+		bar.SetXAxis(dates)
+		bar.AddSeries("ns/op", nsop)
+		// bar.AddYAxis("allocs/op", allocs)
+		// bar.AddYAxis("alloc bytes/op", byteAllocs)
+
+
+		page.AddCharts(bar)
+	}
+
+	// f, err := os.Create("bar.html")
+	// if err != nil {
+	// 	log.Println(err)
 	// }
+	// page.Render(f)
 
-	title := "BenchmarkTableScan"
-	takeOne  := final[title]
-
-	sort.Sort(benchResultSlice(takeOne))
-
-
-	bar := charts.NewBar()
-	bar.SetGlobalOptions(charts.TitleOpts{Title: title}, charts.ToolboxOpts{Show: true})
-
-	dates := make([]string, 0, len(takeOne))
-	nsop := make([]int64, 0, len(takeOne))
-	// allocs := make([]int64, 0, len(takeOne))
-	// byteAllocs := make([]int64, 0, len(takeOne))
-	for _, v := range takeOne {
-		dates = append(dates, v.Date)
-		nsop = append(nsop, v.NsPerOp)
-		// allocs = append(allocs, v.AllocsPerOp)
-		// byteAllocs = append(byteAllocs, v.BytesPerOp)
-	}
-
-	bar.AddXAxis(dates)
-	bar.AddYAxis("ns/op", nsop)
-	// bar.AddYAxis("allocs/op", allocs)
-	// bar.AddYAxis("alloc bytes/op", byteAllocs)
-
-	f, err := os.Create("bar.html")
-	if err != nil {
-		log.Println(err)
-	}
-	bar.Render(f)
+	http.HandleFunc("/", httpserver(page))
+	http.ListenAndServe(":18081", nil)
 }
 
 func addToFinal(final map[string][]benchResult, dateStr string, oneFile []BenchResult) {
