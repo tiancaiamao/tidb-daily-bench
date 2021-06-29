@@ -15,6 +15,13 @@ import (
 	"github.com/go-echarts/go-echarts/v2/opts"
 )
 
+
+type BenchOutput struct {
+	Date string
+	Commit string
+	Result []BenchResult
+}
+
 type BenchResult struct {
 	Name string
 	NsPerOp int64
@@ -59,13 +66,13 @@ func main() {
 		if e.IsDir() {
 			continue
 		}
-		if !strings.HasSuffix(e.Name(), ".out") {
+		if !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
 
-		strs := strings.Split(e.Name(), "_")
-		date, commit := strs[0], strs[1]
-		_ = commit
+		// strs := strings.Split(e.Name(), "_")
+		// date, commit := strs[0], strs[1]
+		// _ = commit
 
 		f, err := os.Open(path.Join("data", e.Name()))
 		if err != nil {
@@ -73,13 +80,13 @@ func main() {
 		}
 		defer f.Close()
 		
-		var b []BenchResult
+		var b BenchOutput
 		dec := json.NewDecoder(f)
 		err = dec.Decode(&b)
 		if err != nil {
 			panic(err)
 		}
-		addToFinal(final, date, b)
+		addToFinal(final, &b)
 	}
 	for _, v := range final {
 		sort.Sort(benchResultSlice(v))
@@ -123,12 +130,13 @@ func main() {
 	http.ListenAndServe(":18081", nil)
 }
 
-func addToFinal(final map[string][]benchResult, dateStr string, oneFile []BenchResult) {
-	date, err := time.Parse("20060102", dateStr)
+func addToFinal(final map[string][]benchResult, oneFile *BenchOutput) {
+	dateStr := oneFile.Date
+	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		panic(err)
 	}
-	for _, v := range oneFile {
+	for _, v := range oneFile.Result {
 		benchCaseName := v.Name
 		serialData, _ := final[benchCaseName]
 		serialData = append(serialData, benchResult{
