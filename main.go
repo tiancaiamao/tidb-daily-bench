@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"sort"
+	"strconv"
 	"path"
 	// "log"
 	"os"
@@ -131,16 +132,16 @@ func main() {
 }
 
 func addToFinal(final map[string][]benchResult, oneFile *BenchOutput) {
-	dateStr := oneFile.Date
-	date, err := time.Parse("2006-01-02", dateStr)
+	v, err := strconv.ParseInt(oneFile.Date, 10, 64)
 	if err != nil {
 		panic(err)
 	}
+	date := time.Unix(v, 0)	
 	for _, v := range oneFile.Result {
 		benchCaseName := v.Name
 		serialData, _ := final[benchCaseName]
 		serialData = append(serialData, benchResult{
-			Date: dateStr,
+			Date: date.Format("2006-01-02"),
 			Sort : date,
 			BenchResult : v,		
 		})

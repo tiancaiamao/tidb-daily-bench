@@ -9,7 +9,7 @@ import (
 )	
 
 func main() {
-	c := exec.Command("git", "log", "-n1000", "--date=short", "--pretty=format:%cd_%h")
+	c := exec.Command("git", "log", "-n1", "--date=short", "--pretty=format:%cd_%h")
 	var out bytes.Buffer
 	c.Stdout = &out
 	err := c.Run()
