@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "net/http/pprof"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/components"
@@ -17,9 +19,9 @@ import (
 
 var (
 	data        []BenchOutput
-	page        *components.Page
-	pageVersion int64
-	currVersion int64
+	allocPage *components.Page
+	mainPage   *components.Page
+	mu sync.RWMutex
 )
 
 type BenchOutput struct {
@@ -56,21 +58,15 @@ func (s benchResultSlice) Swap(i, j int) {
 }
 
 func mainHandle(w http.ResponseWriter, _ *http.Request) {
-	// if currVersion != pageVersion {
-	final := groupByBench(data)
-	page = makePage(final)
-	pageVersion = currVersion
-	// }
-	page.Render(w)
+	mu.RLock()
+	defer mu.RUnlock()
+	mainPage.Render(w)
 }
 
 func allocHandle(w http.ResponseWriter, _ *http.Request) {
-	// if currVersion != pageVersion {
-	final := groupByBench(data)
-	page = makeAllocPage(final)
-	pageVersion = currVersion
-	// }
-	page.Render(w)
+	mu.RLock()
+	defer mu.RUnlock()
+	allocPage.Render(w)
 }
 
 func uploadHandle(w http.ResponseWriter, r *http.Request) {
@@ -84,10 +80,34 @@ func uploadHandle(w http.ResponseWriter, r *http.Request) {
 	err := dec.Decode(&b)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+		return
 	}
 
+	tm, err := unixDateToTime(b.Date)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+		return
+	}
+
+	outfile := fileName(tm, b.Commit)
+	out, err := os.Create(outfile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+		return
+	}
+	defer out.Close()
+
+	enc := json.NewEncoder(out)
+	err = enc.Encode(b)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+		return
+	}
+
+	mu.Lock()
 	data = append(data, b)
-	currVersion++
+	mu.Unlock()
+	reGeneratePage(data)
 }
 
 func loadDataDir() []BenchOutput {
@@ -122,14 +142,27 @@ func loadDataDir() []BenchOutput {
 	return res
 }
 
+func unixDateToTime(date string) (t time.Time, err error) {
+	var v int64
+	v, err = strconv.ParseInt(date, 10, 64)
+	if err != nil {
+		return
+	}
+	t = time.Unix(v, 0)
+	return
+}
+
+func fileName(date time.Time, githash string) string {
+	return date.Format("2006-01-02") + "_" + githash + ".json"
+}
+
 func groupByBench(entries []BenchOutput) map[string][]benchResult {
 	final := make(map[string][]benchResult, len(entries))
 	for _, b := range entries {
-		v, err := strconv.ParseInt(b.Date, 10, 64)
+		date, err := unixDateToTime(b.Date)
 		if err != nil {
 			panic(err)
 		}
-		date := time.Unix(v, 0)
 		for _, v := range b.Result {
 			benchCaseName := v.Name
 			serialData, _ := final[benchCaseName]
@@ -147,7 +180,7 @@ func groupByBench(entries []BenchOutput) map[string][]benchResult {
 	return final
 }
 
-func makePage(final map[string][]benchResult) *components.Page {
+func makeMainPage(final map[string][]benchResult) *components.Page {
 	page := components.NewPage()
 	for name, oneCase := range final {
 		bar := charts.NewBar()
@@ -191,7 +224,6 @@ func makeAllocPage(final map[string][]benchResult) *components.Page {
 		for _, v := range oneCase {
 			dates = append(dates, v.Date)
 			allocs = append(allocs, opts.BarData{Value: v.AllocsPerOp})
-			// allocs = append(allocs, v.AllocsPerOp)
 			// byteAllocs = append(byteAllocs, v.BytesPerOp)
 		}
 
@@ -205,12 +237,22 @@ func makeAllocPage(final map[string][]benchResult) *components.Page {
 	return page
 }
 
+func reGeneratePage(data []BenchOutput) {
+	mu.RLock()
+	final := groupByBench(data)
+	tmpMainPage := makeMainPage(final)
+	tmpAllocPage := makeAllocPage(final)
+	mu.RUnlock()
+
+	mu.Lock()
+	defer mu.Unlock()
+	mainPage = tmpMainPage
+	allocPage = tmpAllocPage
+}
+
 func main() {
 	data = loadDataDir()
-	final := groupByBench(data)
-	page = makePage(final)
-	pageVersion = 0
-	currVersion = 0
+	reGeneratePage(data)
 
 	http.HandleFunc("/", mainHandle)
 	http.HandleFunc("/alloc", allocHandle)

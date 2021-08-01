@@ -11,7 +11,7 @@ import (
 )	
 
 func main() {
-	c := exec.Command("git", "log", "-n300", "--date=unix", "--pretty=format:%cd_%h")
+	c := exec.Command("git", "log", "-n1", "--date=unix", "--pretty=format:%cd_%h")
 	var out bytes.Buffer
 	c.Stdout = &out
 	err := c.Run()
