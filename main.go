@@ -90,7 +90,7 @@ func uploadHandle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outfile := fileName(tm, b.Commit)
-	out, err := os.Create(outfile)
+	out, err := os.Create("data/" + outfile)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 		return
