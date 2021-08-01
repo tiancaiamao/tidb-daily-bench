@@ -56,11 +56,20 @@ func (s benchResultSlice) Swap(i, j int) {
 }
 
 func mainHandle(w http.ResponseWriter, _ *http.Request) {
-	if currVersion != pageVersion {
-		final := groupByBench(data)
-		page = makePage(final)
-		pageVersion = currVersion
-	}
+	// if currVersion != pageVersion {
+	final := groupByBench(data)
+	page = makePage(final)
+	pageVersion = currVersion
+	// }
+	page.Render(w)
+}
+
+func allocHandle(w http.ResponseWriter, _ *http.Request) {
+	// if currVersion != pageVersion {
+	final := groupByBench(data)
+	page = makeAllocPage(final)
+	pageVersion = currVersion
+	// }
 	page.Render(w)
 }
 
@@ -167,6 +176,35 @@ func makePage(final map[string][]benchResult) *components.Page {
 	return page
 }
 
+func makeAllocPage(final map[string][]benchResult) *components.Page {
+	page := components.NewPage()
+	for name, oneCase := range final {
+		bar := charts.NewBar()
+		bar.SetGlobalOptions(
+			charts.WithTitleOpts(opts.Title{Title: name}))
+		// charts.WithToolboxOpts(opts.{Show: true})
+
+		dates := make([]string, 0, len(oneCase))
+		// nsop := make([]opts.BarData, 0, len(oneCase))
+		allocs := make([]opts.BarData, 0, len(oneCase))
+		// byteAllocs := make([]int64, 0, len(oneCase))
+		for _, v := range oneCase {
+			dates = append(dates, v.Date)
+			allocs = append(allocs, opts.BarData{Value: v.AllocsPerOp})
+			// allocs = append(allocs, v.AllocsPerOp)
+			// byteAllocs = append(byteAllocs, v.BytesPerOp)
+		}
+
+		bar.SetXAxis(dates)
+		bar.AddSeries("allocs/op", allocs)
+		// bar.AddYAxis("allocs/op", allocs)
+		// bar.AddYAxis("alloc bytes/op", byteAllocs)
+
+		page.AddCharts(bar)
+	}
+	return page
+}
+
 func main() {
 	data = loadDataDir()
 	final := groupByBench(data)
@@ -175,6 +213,7 @@ func main() {
 	currVersion = 0
 
 	http.HandleFunc("/", mainHandle)
+	http.HandleFunc("/alloc", allocHandle)
 	http.HandleFunc("/upload", uploadHandle)
 	http.ListenAndServe(":18081", nil)
 }
