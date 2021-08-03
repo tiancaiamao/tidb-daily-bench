@@ -1,14 +1,14 @@
 package main
 
 import (
-	"time"
+	"bytes"
 	"fmt"
 	"log"
-	"strings"
-	"strconv"
 	"os/exec"
-	"bytes"
-)	
+	"strconv"
+	"strings"
+	"time"
+)
 
 func main() {
 	c := exec.Command("git", "log", "-n1", "--date=unix", "--pretty=format:%cd_%h")
@@ -41,11 +41,11 @@ func main() {
 		if yy == lastYY && mm == lastMM && dd == lastDD {
 			continue
 		}
-		
+
 		checkout := exec.Command("git", "checkout", githash)
 		checkout.Run()
-		
-		err = runCommand(dateStr, githash, date.Format("2006-01-02") + "_" + githash + ".json")
+
+		err = runCommand(dateStr, githash, date.Format("2006-01-02")+"_"+githash+".json")
 		if err != nil {
 			log.Println("run command error", err)
 			break
@@ -58,7 +58,7 @@ func main() {
 }
 
 func runCommand(unixDateStr, githash, outfile string) error {
-	cmd := exec.Command("go", "test", "-run", "TestBenchDaily", "-date", unixDateStr, "-commit", githash, "-outfile", outfile)
+	cmd := exec.Command("go", "test", "-run", "TestXXX", "-date", unixDateStr, "-commit", githash, "-outfile", outfile)
 	fmt.Println("running command ", cmd)
 	return cmd.Run()
 }

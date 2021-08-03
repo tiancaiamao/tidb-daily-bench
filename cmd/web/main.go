@@ -1,46 +1,30 @@
 package main
 
 import (
-	"sync"
 	"encoding/json"
 	"net/http"
-	"os"
-	"path"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 	_ "net/http/pprof"
+	"sort"
+	"sync"
+	"time"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/opts"
+	"github.com/tiancaiamao/tidb-daily-bench"
 )
 
 var (
-	data        []BenchOutput
+	data      []benchdaily.BenchOutput
 	allocPage *components.Page
-	mainPage   *components.Page
-	mu sync.RWMutex
+	mainPage  *components.Page
+	mu        sync.RWMutex
 )
-
-type BenchOutput struct {
-	Date   string
-	Commit string
-	Result []BenchResult
-}
-
-type BenchResult struct {
-	Name        string
-	NsPerOp     int64
-	AllocsPerOp int64
-	BytesPerOp  int64
-}
 
 type benchResult struct {
 	Date string
 	Sort time.Time
-	BenchResult
+	benchdaily.BenchResult
 }
 
 type benchResultSlice []benchResult
@@ -76,29 +60,21 @@ func uploadHandle(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	dec := json.NewDecoder(r.Body)
-	var b BenchOutput
+	var b benchdaily.BenchOutput
 	err := dec.Decode(&b)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 		return
 	}
 
-	tm, err := unixDateToTime(b.Date)
+	tm, err := benchdaily.UnixDateToTime(b.Date)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 		return
 	}
 
-	outfile := fileName(tm, b.Commit)
-	out, err := os.Create("data/" + outfile)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
-		return
-	}
-	defer out.Close()
-
-	enc := json.NewEncoder(out)
-	err = enc.Encode(b)
+	outfile := benchdaily.FileName(tm, b.Commit)
+	err = benchdaily.WriteJSONFile("data/"+outfile, b)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 		return
@@ -110,56 +86,10 @@ func uploadHandle(w http.ResponseWriter, r *http.Request) {
 	reGeneratePage(data)
 }
 
-func loadDataDir() []BenchOutput {
-	entries, err := os.ReadDir("data")
-	if err != nil {
-		panic(err)
-	}
-
-	res := make([]BenchOutput, 0, 100)
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-
-		f, err := os.Open(path.Join("data", e.Name()))
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-
-		var b BenchOutput
-		dec := json.NewDecoder(f)
-		err = dec.Decode(&b)
-		if err != nil {
-			panic(err)
-		}
-		res = append(res, b)
-	}
-	return res
-}
-
-func unixDateToTime(date string) (t time.Time, err error) {
-	var v int64
-	v, err = strconv.ParseInt(date, 10, 64)
-	if err != nil {
-		return
-	}
-	t = time.Unix(v, 0)
-	return
-}
-
-func fileName(date time.Time, githash string) string {
-	return date.Format("2006-01-02") + "_" + githash + ".json"
-}
-
-func groupByBench(entries []BenchOutput) map[string][]benchResult {
+func groupByBench(entries []benchdaily.BenchOutput) map[string][]benchResult {
 	final := make(map[string][]benchResult, len(entries))
 	for _, b := range entries {
-		date, err := unixDateToTime(b.Date)
+		date, err := benchdaily.UnixDateToTime(b.Date)
 		if err != nil {
 			panic(err)
 		}
@@ -237,7 +167,7 @@ func makeAllocPage(final map[string][]benchResult) *components.Page {
 	return page
 }
 
-func reGeneratePage(data []BenchOutput) {
+func reGeneratePage(data []benchdaily.BenchOutput) {
 	mu.RLock()
 	final := groupByBench(data)
 	tmpMainPage := makeMainPage(final)
@@ -251,7 +181,10 @@ func reGeneratePage(data []BenchOutput) {
 }
 
 func main() {
-	data = loadDataDir()
+	data, err := benchdaily.LoadDataDir("data")
+	if err != nil {
+		panic(err)
+	}
 	reGeneratePage(data)
 
 	http.HandleFunc("/", mainHandle)

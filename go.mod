@@ -1,4 +1,4 @@
-module test
+module github.com/tiancaiamao/tidb-daily-bench
 
 go 1.16
 
