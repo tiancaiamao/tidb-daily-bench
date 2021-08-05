@@ -58,7 +58,7 @@ func main() {
 }
 
 func runCommand(unixDateStr, githash, outfile string) error {
-	cmd := exec.Command("go", "test", "-run", "TestXXX", "-date", unixDateStr, "-commit", githash, "-outfile", outfile)
+	cmd := exec.Command("go", "test", "-run", "TestBenchDaily", "-date", unixDateStr, "-commit", githash, "-outfile", outfile)
 	fmt.Println("running command ", cmd)
 	return cmd.Run()
 }

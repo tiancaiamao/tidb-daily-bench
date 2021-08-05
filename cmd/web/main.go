@@ -181,7 +181,8 @@ func reGeneratePage(data []benchdaily.BenchOutput) {
 }
 
 func main() {
-	data, err := benchdaily.LoadDataDir("data")
+	var err error
+	data, err = benchdaily.LoadDataDir("data")
 	if err != nil {
 		panic(err)
 	}
