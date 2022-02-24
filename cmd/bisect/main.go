@@ -25,7 +25,7 @@ func usage() {
 
 func init() {
 	flag.StringVar(&ops, "ops", "", "specify the ops range")
-	flag.StringVar(&ops, "allocs", "", "specify the allocs range")
+	flag.StringVar(&allocs, "allocs", "", "specify the allocs range")
 	flag.StringVar(&testName, "bench", "", "specify the bench function name")
 }
 
@@ -88,13 +88,15 @@ func main() {
 
 	if len(ops) > 0 && opsFrom > 0 && opsTo > 0 {
 		// compare NsPerOP with [opsFrom, opsTo], and decide it's a good or bad case
-		ret := goodOrBad(NsPerOP, opsFrom, opsTo)
+		ret, show := goodOrBad(NsPerOP, opsFrom, opsTo)
+		fmt.Println("ns/op ==", NsPerOP, show)
 		os.Exit(ret)
 	}
 
 	if len(allocs) > 0 && allocsFrom > 0 && allocsTo > 0 {
 		// compare AllocsPerOP with [allocsFrom, allocsTo], and decide it's a good or bad case
-		ret := goodOrBad(AllocsPerOP, allocsFrom, allocsTo)
+		ret, show := goodOrBad(AllocsPerOP, allocsFrom, allocsTo)
+		fmt.Println("allocs/op ==", AllocsPerOP, show)
 		os.Exit(ret)
 	}
 
@@ -115,16 +117,16 @@ func parseNumberPair(str string) (int64, int64) {
 
 // Return 1~127 if the current source is bad (value near to to)
 // Return 0 for a good case (val near to from)
-func goodOrBad(val, from, to int64) int {
+func goodOrBad(val, from, to int64) (int, string) {
 	if val > to {
-		return 1
+		return 1, "bad"
 	}
 	if val < from {
-		return 0
+		return 0, "good"
 	}
 
 	if val > (from+to)/2 {
-		return 1
+		return 1, "bad"
 	}
-	return 0
+	return 0, "good"
 }
