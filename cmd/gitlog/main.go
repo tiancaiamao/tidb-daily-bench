@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	c := exec.Command("git", "log", "-n1", "--date=unix", "--pretty=format:%cd_%h")
+	c := exec.Command("git", "log", "-n110", "--date=unix", "--pretty=format:%cd_%h")
 	var out bytes.Buffer
 	c.Stdout = &out
 	err := c.Run()
@@ -58,7 +58,8 @@ func main() {
 }
 
 func runCommand(unixDateStr, githash, outfile string) error {
-	cmd := exec.Command("go", "test", "-run", "TestBenchDaily", "-date", unixDateStr, "-commit", githash, "-outfile", outfile)
+	cmd := exec.Command("make", "bench-daily", "TO=/tmp/"+outfile)
+	// cmd := exec.Command("go", "test", "-run", "TestBenchDaily", "-date", unixDateStr, "-commit", githash, "-outfile", outfile)
 	fmt.Println("running command ", cmd)
 	return cmd.Run()
 }
