@@ -78,12 +78,12 @@ func main() {
 
 	b := re2.FindStringSubmatch(str)
 	if len(b) > 1 {
-		AllocsPerOP, _ = strconv.ParseInt(b[1], 10, 64)
+		BytesPerOP, _ = strconv.ParseInt(b[1], 10, 64)
 	}
 
 	c := re3.FindStringSubmatch(str)
 	if len(c) > 1 {
-		BytesPerOP, _ = strconv.ParseInt(c[1], 10, 64)
+		AllocsPerOP, _ = strconv.ParseInt(c[1], 10, 64)
 	}
 
 	if len(ops) > 0 && opsFrom > 0 && opsTo > 0 {
