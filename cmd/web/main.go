@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"encoding/json"
 	"net/http"
 	_ "net/http/pprof"
@@ -184,7 +185,8 @@ func main() {
 	var err error
 	data, err = benchdaily.LoadDataDir("data")
 	if err != nil {
-		panic(err)
+		fmt.Println("load data dir error:", err)
+		return
 	}
 	reGeneratePage(data)
 

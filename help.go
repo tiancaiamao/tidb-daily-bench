@@ -1,6 +1,7 @@
 package benchdaily
 
 import (
+	"fmt"
 	"encoding/json"
 	"os"
 	"path"
@@ -34,6 +35,7 @@ func LoadDataDir(dir string) ([]BenchOutput, error) {
 		dec := json.NewDecoder(f)
 		err = dec.Decode(&b)
 		if err != nil {
+			fmt.Println("json decode file fail:", f.Name())
 			return nil, err
 		}
 		res = append(res, b)
